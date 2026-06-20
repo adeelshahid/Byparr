@@ -6,32 +6,11 @@ name: Docker
 # documentation.
 
 on:
-  schedule:
-    - cron: "25 0 * * *"
   push:
-    branches: ["*"]
-    # Publish semver tags as releases.
+    # Publish semver tags as releases. Restricted to tags (and manual
+    # dispatch) to conserve the GitHub Actions budget — no longer builds
+    # on every branch push, every PR, or the daily cron.
     tags: ["v*.*.*"]
-    paths:
-      - "src/**"
-      - "main.py"
-      - "tests/**"
-      - "Dockerfile"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "compose.yaml"
-      - ".github/workflows/docker-publish.yml"
-  pull_request:
-    branches: ["main"]
-    paths:
-      - "src/**"
-      - "main.py"
-      - "tests/**"
-      - "Dockerfile"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "compose.yaml"
-      - ".github/workflows/docker-publish.yml"
   workflow_dispatch:
 
 env:
