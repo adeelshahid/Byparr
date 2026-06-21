@@ -1,8 +1,12 @@
 name: Cleanup PR Docker Images
 
 on:
-  pull_request:
-    types: [closed]
+  # DISABLED: triggers neutered to manual-only so this stays inert even if
+  # the file is moved back into .github/workflows/. Only relevant again if
+  # docker-publish.yml resumes building per-PR pr-* images. To re-enable,
+  # move the file back and restore:
+  #   pull_request: { types: [closed] }
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
