@@ -1,0 +1,47 @@
+#!/bin/sh
+# Pre-push guard against accidentally (re-)enabling GitHub Actions.
+#
+# Blocks any push that adds or modifies files under .github/workflows/ so a
+# build/codegen/automation flow can't silently activate CI on every commit as
+# a side effect. Workflow edits are intentional acts — make them explicit:
+#
+#   ALLOW_WORKFLOW_CHANGES=1 git push
+#
+# Activate once per clone (the pointer is local, the script is committed):
+#   git config core.hooksPath scripts/git-hooks
+#
+# Scope note: this is a client-side guard. It protects this machine, not CI
+# runners or fresh clones that haven't set core.hooksPath.
+
+[ -n "$ALLOW_WORKFLOW_CHANGES" ] && exit 0
+
+zero=0000000000000000000000000000000000000000
+touched=""
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+	[ "$local_sha" = "$zero" ] && continue   # branch deletion — nothing to inspect
+	if [ "$remote_sha" = "$zero" ]; then
+		# New branch on the remote: diff against the default branch if we can
+		# resolve it, else fall back to just the tip commit.
+		base=$(git rev-parse --quiet --verify origin/HEAD 2>/dev/null \
+			|| git rev-parse --quiet --verify origin/main 2>/dev/null \
+			|| git rev-parse --quiet --verify origin/master 2>/dev/null)
+		if [ -n "$base" ]; then
+			files=$(git diff --name-only "$base" "$local_sha" -- '.github/workflows/')
+		else
+			files=$(git show --name-only --pretty=format: "$local_sha" -- '.github/workflows/')
+		fi
+	else
+		files=$(git diff --name-only "$remote_sha" "$local_sha" -- '.github/workflows/')
+	fi
+	[ -n "$files" ] && touched="$touched$files
+"
+done
+
+if [ -n "$touched" ]; then
+	printf '%s\n' "blocked: this push modifies .github/workflows/:" >&2
+	printf '%s' "$touched" | sed 's/^/  /' >&2
+	printf '%s\n' "if intended, re-run with: ALLOW_WORKFLOW_CHANGES=1 git push" >&2
+	exit 1
+fi
+exit 0
